@@ -1,0 +1,90 @@
+import time
+import random
+
+class MovieRecommendationAI:
+    def __init__(self):
+        # Define movie "rules" where each rule is a genre and its corresponding recommendations
+        self.rules = {
+            "action and adventure": ["The Dark Knight", "Mad Max: Fury Road", "Avengers: Endgame"],
+            "romance and drama": ["The Notebook", "La La Land", "A Walk to Remember"],
+            "comedy and family": ["Toy Story", "The Incredibles", "Shrek"],
+            "sci-fi and thriller": ["Blade Runner 2049", "Inception", "The Matrix"],
+            "horror and mystery": ["The Sixth Sense", "Get Out", "Hereditary"],
+            "fantasy and adventure": ["Harry Potter", "The Hobbit", "The Lord of the Rings"],
+            "documentary and biography": ["Free Solo", "The Social Dilemma", "13th"]
+        }
+
+    def recommend_movies(self, goal, user_preferences):
+        for genre, recommendations in self.rules.items():
+            if goal.lower() in genre.lower() and any(pref.lower() in genre.lower() for pref in user_preferences):
+                return recommendations
+        return []  # No match found
+
+def generate_test_queries(rules, num_queries=100):
+   
+    genres = list(rules.keys())
+    test_queries = []
+
+    for _ in range(num_queries):
+        goal = random.choice(genres)  # Randomly select a genre as the goal
+        user_preferences = random.sample(genres, random.randint(1, 3))  # Random preferences
+        test_queries.append((goal, user_preferences))
+
+    return test_queries
+
+def generate_ground_truth(rules, queries):
+    
+    ground_truth = {}
+
+    for goal, user_preferences in queries:
+        expected = []
+        for genre in user_preferences:
+            if goal.lower() in genre.lower():
+                expected = rules.get(genre, [])
+                break
+        ground_truth[(goal, tuple(user_preferences))] = expected
+
+    return ground_truth
+
+def benchmark_ai_with_metrics(ai, test_queries, ground_truth):
+    
+    correct_matches = 0
+    total_relevance = 0
+    start_time = time.time()
+
+    for goal, user_preferences in test_queries:
+        expected = ground_truth.get((goal, tuple(user_preferences)), [])
+        result = ai.recommend_movies(goal, user_preferences)
+
+        # Check for exact match to determin accuracy
+        if result == expected:
+            correct_matches += 1
+
+        if expected:
+            intersection = len(set(result) & set(expected))
+            union = len(set(result) | set(expected))
+            relevance = intersection / union if union > 0 else 0
+            total_relevance += relevance
+        else:
+            # No expected result means 0 relevance
+            total_relevance += 0
+
+    end_time = time.time()
+    total_queries = len(test_queries)
+    average_relevance = total_relevance / total_queries
+
+    print(f"Processed {total_queries} queries in {end_time - start_time:.4f} seconds")
+    print(f"Average Relevance: {average_relevance:.2f}")
+
+if __name__ == "__main__":
+    # Create an instance of the AI
+    ai = MovieRecommendationAI()
+
+    # Generates 500 test queries
+    test_queries = generate_test_queries(ai.rules, num_queries=5000)
+
+    # Generates corresponding ground truth for the queries
+    ground_truth = generate_ground_truth(ai.rules, test_queries)
+
+    # Run the benchmarking function
+    benchmark_ai_with_metrics(ai, test_queries, ground_truth)

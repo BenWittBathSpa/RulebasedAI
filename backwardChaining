@@ -1,0 +1,99 @@
+import time
+
+class MovieRecommendationAI:
+    def __init__(self):
+        # Define movies where each rule is a genre and its recommendations
+        self.rules = {
+            "action and adventure": ["The Dark Knight", "Mad Max: Fury Road", "Avengers: Endgame"],
+            "romance and drama": ["The Notebook", "La La Land", "A Walk to Remember"],
+            "comedy and family": ["Toy Story", "The Incredibles", "Shrek"],
+            "sci-fi and thriller": ["Blade Runner 2049", "Inception", "The Matrix"],
+            "horror and mystery": ["The Sixth Sense", "Get Out", "Hereditary"],
+        }
+
+    def recommend_movies(self, goal, user_preferences):
+        
+        for genre, recommendations in self.rules.items():
+            if goal.lower() in genre.lower() and any(pref.lower() in genre.lower() for pref in user_preferences):
+                return recommendations
+        return []  # No match found
+
+def generate_test_queries(rules, num_queries=100):
+    
+    genres = list(rules.keys())
+    test_queries = []
+
+    for _ in range(num_queries):
+        goal = random.choice(genres)  # Randomly select a genre as the goal
+        user_preferences = random.sample(genres, random.randint(1, 3))  # Random preferences
+        test_queries.append((goal, user_preferences))
+
+    return test_queries
+
+def generate_ground_truth(rules, queries):
+    
+    ground_truth = {}
+
+    for goal, user_preferences in queries:
+        expected = []
+        for genre in user_preferences:
+            if goal.lower() in genre.lower():
+                expected = rules.get(genre, [])
+                break
+        # Convert user_preferences to tuple so it can be used as a key
+        ground_truth[(goal, tuple(user_preferences))] = expected
+
+    return ground_truth
+
+def benchmark_ai_with_relevance(ai, test_queries, ground_truth):
+    correct_matches = 0
+    total_relevance = 0
+    start_time = time.time()
+
+    for goal, user_preferences in test_queries:
+        # Convert user_preferences to tuple before checking against ground_truth
+        query = (goal, tuple(user_preferences))
+        expected = ground_truth.get(query, [])
+        result = ai.recommend_movies(goal, user_preferences)
+
+        # Check for exact match to evaluate accuracy
+        if result == expected:
+            correct_matches += 1
+
+        
+        if expected:
+            intersection = len(set(result) & set(expected))
+            union = len(set(result) | set(expected))
+            relevance = intersection / union if union > 0 else 0
+            total_relevance += relevance
+        else:
+            
+            total_relevance += 0
+
+    end_time = time.time()
+    total_queries = len(test_queries)
+    average_relevance = total_relevance / total_queries
+
+    print(f"Processed {total_queries} queries in {end_time - start_time:.4f} seconds")
+    print(f"Accuracy: {correct_matches / total_queries * 100:.2f}%")
+    print(f"Average Relevance: {average_relevance:.2f}")
+
+if __name__ == "__main__":
+    # Create an instance of the AI
+    ai = MovieRecommendationAI()
+
+    # Simulate a set of test queries
+    test_queries = [
+        ("action and adventure", ["action", "adventure"]),
+        ("romance and drama", ["romance", "drama"]),
+        ("comedy and family", ["comedy", "family"]),
+        ("sci-fi and thriller", ["sci-fi", "thriller"]),
+        ("horror and mystery", ["horror", "mystery"]),
+        ("action and adventure", ["sci-fi", "drama"]),  # Mismatched input to test fallback
+    ] * 1000  # Repeats the test 1000 times for 6000 queries
+
+    # Generate the ground truth for the queries
+    ground_truth = generate_ground_truth(ai.rules, test_queries)
+
+    # Run the benchmarking function
+    benchmark_ai_with_relevance(ai, test_queries, ground_truth)
